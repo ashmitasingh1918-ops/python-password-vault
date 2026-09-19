@@ -1,0 +1,802 @@
+# 🔐 Python Password Vault
+
+A secure command-line password manager built with Python that stores credentials inside an encrypted local vault.
+
+The project demonstrates practical cybersecurity and secure software-development concepts including **Argon2id password-based key derivation, AES-256-GCM authenticated encryption, cryptographically secure random generation, secure file permissions, password rotation, tamper detection, and automated security testing**.
+
+---
+
+## 📌 Overview
+
+Python Password Vault is a local CLI password manager where users can securely store and retrieve credentials using a single master password.
+
+The master password is **never stored inside the vault**.
+
+Instead, it is combined with a randomly generated salt and processed using **Argon2id** to derive a 256-bit encryption key.
+
+That key is then used with **AES-256-GCM** to encrypt and authenticate the vault contents.
+
+### High-Level Security Flow
+
+```text
+                 Master Password
+                        │
+                        ▼
+                  Random Salt
+                        │
+                        ▼
+                    Argon2id
+                        │
+                        ▼
+                 256-bit Key
+                        │
+                        ▼
+                 AES-256-GCM
+                        │
+                        ▼
+               Encrypted Vault
+                  vault.json
+
+✨ Features
+🔐 Vault Security
+Master password protected vault
+Argon2id password-based key derivation
+AES-256-GCM authenticated encryption
+Random salt generation
+Fresh nonce generation
+Wrong master password detection
+Ciphertext tamper detection
+Secure vault file permissions
+Atomic vault saving
+🔑 Password Management
+Create a password vault
+Add credentials
+List stored entries
+Retrieve credentials
+Delete entries
+Overwrite existing entries with explicit force option
+Change the master password
+🎲 Password Generator
+Cryptographically secure random password generation
+Lowercase characters
+Uppercase characters
+Digits
+Symbols
+Configurable password length
+Guarantees at least one character from each enabled character pool
+Secure Fisher-Yates shuffling
+🧪 Testing
+
+The project contains automated tests covering:
+
+Cryptographic operations
+Password generation
+Vault creation
+Vault persistence
+Entry management
+Password rotation
+Wrong-password handling
+Tamper detection
+File permissions
+Invalid vault formats
+Temporary-file cleanup
+Atomic save behavior
+🛠️ Technology Stack
+Technology	Purpose
+Python	Application development
+Argon2id	Password-based key derivation
+AES-256-GCM	Authenticated encryption
+secrets	Cryptographically secure randomness
+Typer	Command-line interface
+Rich	Terminal output
+pytest	Automated testing
+Git	Version control
+GitHub	Repository hosting
+🏗️ Project Structure
+python-password-vault/
+│
+├── src/
+│   └── password_manager/
+│       ├── __init__.py
+│       ├── __main__.py
+│       ├── constants.py
+│       ├── crypto.py
+│       ├── generator.py
+│       ├── main.py
+│       └── vault.py
+│
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_crypto.py
+│   ├── test_generator.py
+│   └── test_vault.py
+│
+├── .gitignore
+├── pyproject.toml
+├── README.md
+└── uv.lock
+📂 Module Responsibilities
+constants.py
+
+Centralizes configuration and constants used throughout the application.
+
+Contains:
+
+Argon2id parameters
+AES parameters
+Vault format identifiers
+Vault file permissions
+Password generator configuration
+CLI prompts
+CLI messages
+
+Keeping these values centralized avoids scattering configuration throughout the application.
+
+crypto.py
+
+Contains the cryptographic layer of the application.
+
+Responsibilities:
+
+Generate cryptographic salts
+Generate encryption nonces
+Derive encryption keys using Argon2id
+Encrypt data using AES-256-GCM
+Decrypt data using AES-256-GCM
+Handle cryptographic errors
+
+The cryptographic layer is intentionally separated from the vault and CLI logic.
+
+generator.py
+
+Responsible for generating secure random passwords.
+
+It uses Python's secrets module instead of the standard random module.
+
+Responsibilities:
+
+Build enabled character pools
+Select secure random characters
+Guarantee character-pool requirements
+Fill remaining password positions
+Securely shuffle generated characters
+vault.py
+
+Contains the main vault-management logic.
+
+Responsibilities:
+
+Create vaults
+Unlock vaults
+Save vaults
+Encrypt vault contents
+Decrypt vault contents
+Add entries
+Retrieve entries
+Delete entries
+Change the master password
+Validate vault structure
+Handle vault lifecycle
+Perform secure persistence
+main.py
+
+Contains the command-line interface.
+
+It connects user commands with the underlying vault, cryptography, and password-generation layers.
+
+Available commands include:
+
+init
+list
+get
+add
+delete
+gen
+change-password
+__init__.py
+
+Defines the Python package and exposes important classes, exceptions, and package metadata.
+
+__main__.py
+
+Allows the application to be executed with:
+
+python -m password_manager
+
+It starts the CLI application defined in main.py.
+
+🔐 Cryptography
+
+The application uses two primary cryptographic components:
+
+Argon2id
+   ↓
+Key Derivation
+
+AES-256-GCM
+   ↓
+Encryption + Authentication
+1. Master Password
+
+The master password is the secret used to unlock the vault.
+
+It is never directly stored in the vault.
+
+Instead, it is used as input to Argon2id.
+
+Master Password
+       +
+Random Salt
+       ↓
+    Argon2id
+       ↓
+256-bit Encryption Key
+2. Argon2id
+
+Argon2id is used as the password-based key derivation function.
+
+The purpose of key derivation is to transform a human-readable password into a cryptographic key suitable for encryption.
+
+The production configuration uses:
+
+Algorithm:       Argon2id
+Time Cost:       3
+Memory Cost:     65536 KiB
+Parallelism:     4
+Key Length:      32 bytes
+Salt Length:     16 bytes
+
+The test suite uses significantly smaller parameters so that cryptographic tests execute quickly.
+
+3. Salt
+
+A unique random salt is generated when the vault is created.
+
+The salt is not secret and is stored as part of the vault metadata.
+
+Its purpose is to ensure that the same master password does not always produce the same encryption key.
+
+Password + Salt A → Key A
+
+Password + Salt B → Key B
+
+Therefore, two vaults using the same master password can still have different derived keys.
+
+4. Key Derivation
+
+The derive_key() function performs the key derivation process.
+
+Conceptually:
+
+Master Password
+       │
+       ▼
+ UTF-8 Encoding
+       │
+       +
+       │
+ Random Salt
+       │
+       ▼
+    Argon2id
+       │
+       ▼
+ 32-byte Key
+
+The resulting 32-byte key is used as the AES-256 encryption key.
+
+5. AES-256-GCM
+
+The derived 256-bit key is used with AES-256-GCM.
+
+AES-GCM provides both:
+
+Confidentiality
+Integrity/authentication
+
+This means the application can detect if encrypted data has been modified.
+
+6. Nonce
+
+Each encryption operation generates a fresh random nonce.
+
+The nonce is not secret, but it must not be reused with the same encryption key.
+
+The project generates nonces using Python's secrets module.
+
+Example:
+
+Save #1
+   ↓
+Nonce A
+   ↓
+Ciphertext A
+
+Save #2
+   ↓
+Nonce B
+   ↓
+Ciphertext B
+
+The test suite verifies that repeated saves generate different nonces.
+
+7. Tamper Detection
+
+AES-GCM authenticates the encrypted data.
+
+If an attacker modifies the ciphertext:
+
+Encrypted Data
+      │
+      ▼
+AES-GCM Authentication
+      │
+      ▼
+Authentication Failure
+      │
+      ▼
+WrongPasswordError
+
+The project includes tests that deliberately modify ciphertext and nonces to verify that tampering is detected.
+
+📦 Vault Format
+
+The vault is stored as a JSON envelope.
+
+A simplified representation looks like:
+
+{
+    "version": 1,
+    "kdf": {
+        "name": "argon2id",
+        "salt": "...",
+        "time_cost": 3,
+        "memory_cost": 65536,
+        "parallelism": 4
+    },
+    "cipher": {
+        "name": "aes-256-gcm",
+        "nonce": "...",
+        "ciphertext": "..."
+    }
+}
+
+The metadata required to derive the key and decrypt the vault is stored outside the ciphertext.
+
+The actual credential entries are stored inside the encrypted ciphertext.
+
+Therefore, opening the JSON file directly does not reveal the stored passwords.
+
+🔄 Vault Workflow
+Creating a Vault
+User enters master password
+          ↓
+Generate random salt
+          ↓
+Derive key using Argon2id
+          ↓
+Create empty vault
+          ↓
+Encrypt vault using AES-256-GCM
+          ↓
+Save encrypted vault
+Unlocking a Vault
+User enters master password
+          ↓
+Read vault metadata
+          ↓
+Read salt
+          ↓
+Derive encryption key
+          ↓
+Read nonce + ciphertext
+          ↓
+Decrypt using AES-GCM
+          ↓
+Authentication successful?
+       /              \
+     YES               NO
+      ↓                 ↓
+Open vault       Wrong password /
+                 corrupted data
+➕ Adding an Entry
+
+Example:
+
+PYTHONPATH="src:." python -m password_manager add github --vault ./vault.json
+
+The application collects:
+
+Username
+Password
+URL
+Notes
+
+The entry is added to the in-memory vault and then persisted.
+
+The save process encrypts the updated vault before writing it to disk.
+
+Entry
+  ↓
+Vault Data
+  ↓
+Serialization
+  ↓
+AES-256-GCM
+  ↓
+Encrypted Ciphertext
+  ↓
+vault.json
+📋 Listing Entries
+PYTHONPATH="src:." python -m password_manager list --vault ./vault.json
+
+The vault is unlocked using the master password and the stored entry names are displayed.
+
+Passwords are not displayed as part of the list.
+
+🔎 Retrieving an Entry
+PYTHONPATH="src:." python -m password_manager get github --vault ./vault.json
+
+The application:
+
+Master Password
+       ↓
+Unlock Vault
+       ↓
+Decrypt Vault
+       ↓
+Find Entry
+       ↓
+Display Entry
+🗑️ Deleting an Entry
+PYTHONPATH="src:." python -m password_manager delete github --vault ./vault.json
+
+The specified entry is removed and the updated encrypted vault is saved.
+
+🔄 Changing the Master Password
+
+Changing the master password causes the vault to be re-keyed.
+
+The process is conceptually:
+
+Old Master Password
+        ↓
+Unlock Existing Vault
+        ↓
+Read Existing Entries
+        ↓
+Generate New Salt
+        ↓
+New Master Password
+        ↓
+Argon2id
+        ↓
+New Encryption Key
+        ↓
+Encrypt Existing Entries
+        ↓
+Save Updated Vault
+
+After the password is changed:
+
+Old Password → ❌ Rejected
+
+New Password → ✅ Accepted
+
+The existing entries remain intact.
+
+🎲 Secure Password Generation
+
+The password generator uses Python's secrets module.
+
+It intentionally does not use:
+
+random.choice()
+
+because the standard random module is designed for general-purpose randomness rather than cryptographic security.
+
+Instead, the project uses:
+
+secrets.choice()
+secrets.randbelow()
+
+The generator supports:
+
+Lowercase letters
+Uppercase letters
+Digits
+Symbols
+
+Example:
+
+PYTHONPATH="src:." python -m password_manager gen 24
+
+Example output:
+
+mJ7@xP2#qL9!vT4$kR8&zQ1
+
+The generated password is guaranteed to contain at least one character from every enabled character pool.
+
+The remaining characters are selected from the combined alphabet and the final list is securely shuffled using Fisher-Yates.
+
+🚀 Installation
+1. Clone the repository
+git clone https://github.com/ashmitasingh1918-ops/python-password-vault.git
+cd python-password-vault
+2. Create a virtual environment
+python3 -m venv .venv
+3. Activate the virtual environment
+Linux / WSL
+source .venv/bin/activate
+Windows
+.venv\Scripts\activate
+4. Install dependencies
+python -m pip install argon2-cffi cryptography typer rich pytest
+💻 CLI Usage
+
+Display available commands:
+
+PYTHONPATH="src:." python -m password_manager --help
+Create a Vault
+PYTHONPATH="src:." python -m password_manager init --vault ./vault.json
+
+You will be prompted for a master password and confirmation.
+
+Generate a Password
+PYTHONPATH="src:." python -m password_manager gen 24
+Add an Entry
+PYTHONPATH="src:." python -m password_manager add github --vault ./vault.json
+List Entries
+PYTHONPATH="src:." python -m password_manager list --vault ./vault.json
+Get an Entry
+PYTHONPATH="src:." python -m password_manager get github --vault ./vault.json
+Delete an Entry
+PYTHONPATH="src:." python -m password_manager delete github --vault ./vault.json
+Change Master Password
+PYTHONPATH="src:." python -m password_manager change-password --vault ./vault.json
+🧪 Testing
+
+The project uses pytest for automated testing.
+
+Run the complete test suite:
+
+PYTHONPATH="src:." pytest -v
+Test Results
+
+The current test suite contains:
+
+Crypto tests       16 passed
+Generator tests     9 passed
+Vault tests        44 passed
+────────────────────────────
+Total              69 passed
+Total:
+
+69 tests passed ✅
+
+🔬 What Is Tested?
+Cryptographic Tests
+
+The crypto test suite verifies:
+
+Salt generation
+Nonce generation
+Correct key length
+Deterministic key derivation
+Different passwords produce different keys
+Different salts produce different keys
+Immutable KDF parameters
+Empty password rejection
+Encryption/decryption round trips
+Fresh nonce generation
+Empty plaintext handling
+Wrong-key rejection
+Ciphertext tampering detection
+Nonce tampering detection
+Password Generator Tests
+
+The generator tests verify:
+
+Correct password length
+Minimum password length
+Disabled character pools
+Character-pool requirements
+Lowercase-only generation
+Symbol exclusion
+Password uniqueness
+Valid character alphabet
+Boundary conditions
+Vault Tests
+
+The vault tests verify:
+
+Vault creation
+Duplicate vault protection
+Secure file permissions
+Vault JSON structure
+Parent directory creation
+Empty master password rejection
+Save/unlock round trips
+Wrong password rejection
+Missing vault handling
+Invalid JSON handling
+Unsupported vault versions
+Invalid KDF parameters
+Immutable entries
+Entry validation
+Adding entries
+Listing entries
+Duplicate entry protection
+Forced overwrites
+Entry deletion
+Master password rotation
+Old password rejection
+New password unlocking
+Entry preservation after password rotation
+Vault cleanup
+Context-manager behavior
+Fresh encryption nonces
+Temporary-file cleanup
+Atomic save behavior
+🛡️ Security Design
+
+The project follows several secure-development principles.
+
+Passwords are not stored as plaintext
+
+Credential data is encrypted before being written to disk.
+
+Master password is not stored
+
+Only the information required for key derivation is stored.
+
+Argon2id is used for key derivation
+
+This makes password guessing more expensive than using a fast general-purpose hash.
+
+AES-256-GCM provides authenticated encryption
+
+This protects confidentiality and detects unauthorized modification.
+
+Random salts are used
+
+Each vault receives a unique salt.
+
+Fresh nonces are generated
+
+Each encryption operation generates a new nonce.
+
+Cryptographically secure randomness is used
+
+Password generation uses Python's secrets module.
+
+Vault permissions are restricted
+
+On Unix-like systems, vault files are created with:
+
+0600
+
+This gives the owner read/write access while denying access to other users.
+
+Atomic saving is used
+
+The application writes to a temporary file before replacing the existing vault, reducing the risk of leaving a partially written vault after a failed save.
+
+🎯 Threat Model
+
+The project primarily addresses the scenario where an attacker obtains the encrypted vault file but does not know the master password.
+
+For example:
+
+Attacker obtains vault.json
+          ↓
+Credential data is encrypted
+          ↓
+Master password required
+          ↓
+Argon2id derives encryption key
+          ↓
+AES-256-GCM attempts decryption
+          ↓
+Correct password → Decrypt
+Wrong password   → Reject
+
+AES-GCM authentication also allows the application to detect modification of encrypted data.
+
+⚠️ Security Limitations
+
+This is an educational cybersecurity and software-engineering project.
+
+It has not been professionally security audited and should not be considered equivalent to a production password manager.
+
+It cannot protect against every possible threat.
+
+Examples include:
+
+Malware running on the host machine
+Keyloggers
+A compromised operating system
+An attacker controlling the running Python process
+Memory extraction
+A stolen master password
+Compromised Python dependencies
+Vulnerabilities in the operating system
+Physical compromise of an unlocked machine
+
+The project is intended to demonstrate secure design and practical cryptography rather than replace professionally audited password-management software.
+
+📚 Key Concepts Demonstrated
+
+This project provided hands-on experience with:
+
+Python
+Modules and packages
+Dataclasses
+Type hints
+Exception handling
+Context managers
+File operations
+CLI development
+Cryptography
+Argon2id
+AES-256-GCM
+Key derivation
+Cryptographic salts
+Nonces
+Authenticated encryption
+Integrity verification
+Secure random generation
+Cybersecurity
+Secure password storage
+Password guessing resistance
+Tamper detection
+File permissions
+Secure temporary files
+Threat modeling
+Security-focused testing
+Software Engineering
+Modular architecture
+Separation of concerns
+Automated testing
+Pytest fixtures
+Error handling
+Virtual environments
+Git
+GitHub
+🔮 Future Improvements
+
+Possible future improvements include:
+
+ Package the application so it can be installed as a pv command
+ Improve dependency management
+ Add GitHub Actions CI/CD
+ Add additional security tests
+ Add password-strength estimation
+ Add secure clipboard integration
+ Add encrypted backup functionality
+ Add import/export functionality
+ Improve CLI UX
+ Perform a deeper security audit
+ Add release/version management
+📊 Project Status
+Component	Status
+Core Python implementation	✅ Complete
+Cryptographic layer	✅ Complete
+Password generator	✅ Complete
+Vault management	✅ Complete
+CLI	✅ Complete
+Automated testing	✅ Complete
+End-to-end testing	✅ Complete
+69 automated tests	✅ Passing
+GitHub repository	✅ Published
+Security documentation	✅ Added
+👩‍💻 Author
+
+Ashmita
+
+B.Tech Computer Science Engineering
+
+GitHub:
+
+https://github.com/ashmitasingh1918-ops
